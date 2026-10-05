@@ -23,7 +23,14 @@ const SECRET_KEY = process.env.JWT_SECRET || 'YOUR_SECRET_KEY';
 
 let auth;
 try {
-  const creds = require('./google-credentials.json'); 
+  let creds;
+  // जर Vercel वरील Environment Variable उपलब्ध असेल तर तिथून वाच, अन्यथा लोकल फाईल वापर
+  if (process.env.GOOGLE_CREDENTIALS_JSON) {
+    creds = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+  } else {
+    creds = require('./google-credentials.json');
+  }
+
   auth = new JWT({
     email: creds.client_email,
     key: creds.private_key, 
@@ -32,12 +39,11 @@ try {
       'https://www.googleapis.com/auth/drive'
     ],
   });
-  console.log("✅ Google Credentials JSON Loaded!");
+  console.log("✅ Google Credentials Loaded Successfully!");
 } catch (e) {
-  console.error("❌ CRITICAL ERROR: 'google-credentials.json' is missing!");
+  console.error("❌ CRITICAL ERROR: Google Credentials are missing or invalid!", e.message);
   process.exit(1);
 }
-
 const doc = new GoogleSpreadsheet(SPREADSHEET_ID, auth);
 
 // १. Master Sheet Initialization (नवीन leaveCreditsHistory कॉलमसह)
