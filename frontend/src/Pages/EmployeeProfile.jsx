@@ -1,310 +1,209 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { User, LogOut, Shield } from 'lucide-react';
 
-export default function CRReportModule() {
-  const [employees, setEmployees] = useState([]);
-  const [selectedEmpId, setSelectedEmpId] = useState('');
-  const [empDetails, setEmpDetails] = useState(null);
-  
-  // फॉर्म स्टेट्स
-  const [judgeName, setJudgeName] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [station, setStation] = useState('');
-
-  // ✏️ एडिट करण्यासाठी स्टेट
-  const [editIndex, setEditIndex] = useState(null);
-
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const EmployeeProfile = () => {
+  const [employeeData, setEmployeeData] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchEmployees();
-  }, []);
+    // लॉगिन करताना सेव्ह केलेला युझर डेटा वाचणे
+    const storedUser = localStorage.getItem('user');
+    const isAuthenticated = localStorage.getItem('isAuthenticated');
 
-  const fetchEmployees = async () => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/employees`);
-      setEmployees(res.data);
-      
-      // जर एखाਦਾ कर्मचारी आधीच निवडलेला असेल, तर बॅकएंडवरून नवीन डेटा आल्यावर त्याचे तपशील देखील रिफ्रेश करा
-      if (selectedEmpId) {
-        const found = res.data.find(emp => String(emp.id || emp._id) === String(selectedEmpId));
-        if (found) setEmpDetails(found);
-      }
-    } catch (err) {
-      console.error('Error fetching employees', err);
-    }
-  };
-
-  const handleEmployeeChange = (e) => {
-    const empId = e.target.value;
-    setSelectedEmpId(empId);
-    const found = employees.find(emp => String(emp.id || emp._id) === String(empId));
-    setEmpDetails(found || null);
-    setEditIndex(null); 
-    clearForm();
-  };
-
-  const clearForm = () => {
-    setJudgeName('');
-    setFromDate('');
-    setToDate('');
-    setStation('');
-    setEditIndex(null);
-  };
-
-  // 💾 कालावधी ॲड किंवा अपडेट करणे
-  const handleSaveDuration = async (e) => {
-    e.preventDefault();
-    if (!judgeName || !fromDate) {
-      alert('कृपया न्यायाधीशाचे नाव आणि सुरू तारीख भरा!');
+    if (!isAuthenticated || !storedUser) {
+      navigate('/login', { replace: true });
       return;
     }
 
-    const currentList = [...(empDetails.officersDuration || [])];
+    setEmployeeData(JSON.parse(storedUser));
+  }, [navigate]);
 
-    const entryData = {
-      judgeName,
-      fromDate,
-      toDate: toDate || 'सध्या कार्यरत (Present)',
-      stationName: station || empDetails.underOfficeOrCourt || '-'
-    };
+  // const handleLogout = () => {
+  //   localStorage.clear();
+  //   navigate('/login', { replace: true });
+  // };
 
-    if (editIndex !== null) {
-      currentList[editIndex] = entryData;
-    } else {
-      currentList.push(entryData);
-    }
-
-    const empId = empDetails.id || empDetails._id;
-
-    try {
-      const res = await axios.put(`${API_BASE_URL}/employees/${empId}/officers-duration`, {
-        officersDuration: currentList,
-        employeeName: empDetails.employeeName
-      });
-
-      if (res.data.success || res.status === 200) {
-        alert(editIndex !== null ? '✅ सेवा कालावधी यशस्वीरीत्या अपडेट झाला!' : '✅ न्यायाधीशांचा सेवा कालावधी यशस्वीरीत्या जतन झाला!');
-        
-        clearForm();
-        // 🔄 मुख्य कर्मचाऱ्यांची लिस्ट आणि सध्याच्या कर्मचाऱ्याचा डेटा बॅकएंडवरून रीफ्रेश करा
-        await fetchEmployees();
-      }
-    } catch (err) {
-      alert('🛑 सेव्ह करताना एरर आला.');
-      console.error(err);
-    }
+  const handleLogout = () => {
+    localStorage.clear(); // सर्व लोकल स्टोरेज डेटा साफ करा
+    
+    // युजरचा डेटा आणि स्टेट रीसेट करण्यासाठी पेज पूर्ण रिफ्रेश करा
+    window.location.href = '/'; 
   };
 
-  // ✏️ एडिट करण्यासाठी डेटा फॉर्ममध्ये भरणे
-  const handleEditClick = (index) => {
-    const item = empDetails.officersDuration[index];
-    setJudgeName(item.judgeName || '');
-    setFromDate(item.fromDate || '');
-    setToDate(item.toDate === 'सध्या कार्यरत (Present)' ? '' : item.toDate);
-    setStation(item.stationName || '');
-    setEditIndex(index);
-  };
+  if (!employeeData) {
+    return <div style={{ textAlign: 'center', marginTop: '50px', fontSize: '18px' }}>लोड होत आहे... (Loading...)</div>;
+  }
 
-  // ❌ कालावधी डिलीट करणे
-  const handleDeleteDuration = async (index) => {
-    if (!window.confirm('खात्री आहे का? तुम्ही हा सेवा कालावधी रेकॉर्ड डिलीट करू इच्छिता?')) {
-      return;
-    }
-
-    const currentList = [...empDetails.officersDuration];
-    currentList.splice(index, 1); 
-
-    const empId = empDetails.id || empDetails._id;
-
-    try {
-      const res = await axios.put(`${API_BASE_URL}/employees/${empId}/officers-duration`, {
-        officersDuration: currentList,
-        employeeName: empDetails.employeeName
-      });
-
-      if (res.data.success || res.status === 200) {
-        alert('🗑️ सेवा कालावधी यशस्वीरीत्या डिलीट केला!');
-        clearForm();
-        // 🔄 मुख्य कर्मचाऱ्यांची लिस्ट आणि सध्याच्या कर्मचाऱ्याचा डेटा बॅकएंडवरून रीफ्रेश करा
-        await fetchEmployees();
-      }
-    } catch (err) {
-      alert('🛑 डिलीट करताना एरर आला.');
-      console.error(err);
-    }
-  };
-
+  // इथे तुम्ही पाठवलेला डिझाईन आणि टेबलचा कोड वापरला आहे (फक्त selectedEmp ऐवजी employeeData वापरले आहे)
   return (
-    <div style={{ padding: '20px', fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', background: '#f8fafc', minHeight: '100vh' }}>
-      <div style={{ background: '#fff', padding: '25px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxWidth: '1000px', margin: '0 auto' }}>
-        
-        <h2 style={{ color: '#0d233a', borderBottom: '2px solid #0d233a', paddingBottom: '10px', fontSize: '22px', marginBottom: '20px' }}>
-          📑 CR रिपोर्ट: न्यायाधीशांच्या अंतर्गत सेवा कालावधी (Judge-wise Service Span)
-        </h2>
+    <div style={{ background: '#f8fafc', minHeight: '100vh', padding: '20px', fontFamily: "'Segoe UI', Roboto, sans-serif" }}>
+      {/* टॉप बार / लॉगआउट बटन */}
+      <div style={{ maxWidth: '850px', margin: '0 auto 20px auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '15px 25px', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+        <div>
+          <h2 style={{ color: '#0d233a', margin: 0, fontSize: '20px' }}>🏛️ जिल्हा व सत्र न्यायालय, नाशिक</h2>
+          <p style={{ color: '#64748b', margin: '3px 0 0 0', fontSize: '13px' }}>कर्मचारी माहिती पोर्टल (Employee Portal)</p>
+        </div>
+        <button 
+          onClick={handleLogout}
+          style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <LogOut size={16} /> बाहेर पडा (Logout)
+        </button>
+      </div>
 
-        {/* कर्मचारी निवडण्याचा ड्रॉपडाऊन */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#334155' }}>
-            कर्मचारी निवडा (Select Employee):
-          </label>
-          <select 
-            value={selectedEmpId} 
-            onChange={handleEmployeeChange}
-            style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '15px' }}
-          >
-            <option value="">-- कर्मचारी निवडा --</option>
-            {employees.map((emp, idx) => (
-              <option key={idx} value={emp.id || emp._id}>
-                {emp.employeeName} ({emp.employeeRole || emp.designation || 'Staff'})
-              </option>
-            ))}
-          </select>
+      {/* मुख्य माहिती कार्ड (View Info Modal सारखाच हुबेहूब लुक) */}
+      <div style={{ background: '#fff', padding: '30px', borderRadius: '10px', width: '850px', maxWidth: '100%', margin: '0 auto', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0d233a', paddingBottom: '12px', marginBottom: '20px' }}>
+          <h3 style={{ color: '#0d233a', margin: 0, fontSize: '18px' }}>📋 कर्मचाऱ्याची संपूर्ण माहिती (Employee Details)</h3>
+          <span style={{ background: '#d1fae5', color: '#065f46', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
+            सक्रिय कर्मचारी (Active)
+          </span>
+        </div>
+        
+        <h4 style={modalSectionTitleStyle}>👤 १. मूलभूत माहिती व ओळख (Basic & Personal Information)</h4>
+        <div style={modalGridStyle}>
+          <div style={infoBoxStyle}><strong>पूर्ण नाव:</strong> {employeeData.employeeName || '-'}</div>
+          <div style={infoBoxStyle}><strong>लिंग:</strong> {employeeData.gender || '-'}</div>
+          <div style={infoBoxStyle}><strong>जन्मतारीख (DOB):</strong> {employeeData.dob || '-'}</div>
+          <div style={infoBoxStyle}><strong>पद / रोल:</strong> {employeeData.employeeRole || employeeData.designation || '-'}</div>
+          <div style={infoBoxStyle}><strong>कर्मचारी आयडी:</strong> {employeeData.employeeId || '-'}</div>
+          <div style={infoBoxStyle}><strong>मोबाईल नंबर:</strong> {employeeData.mobileNo || '-'}</div>
         </div>
 
-        {/* जर कर्मचारी निवडला असेल तर माहिती आणि टेबल दिसेल */}
-        {empDetails && (
-          <div>
-            <div style={{ background: '#f1f5f9', padding: '15px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-              <h3 style={{ color: '#1e293b', fontSize: '16px', marginBottom: '10px' }}>👤 कर्मचारी तपशील</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '14px', color: '#334155' }}>
-                <div><strong>पूर्ण नाव:</strong> {empDetails.employeeName}</div>
-                <div><strong>पद (Designation):</strong> {empDetails.employeeRole || '-'}</div>
-                <div><strong>सध्याचे कोर्ट/ऑफिस:</strong> {empDetails.underOfficeOrCourt || '-'}</div>
-                <div><strong>सध्याचे माननीय न्यायाधीश:</strong> <span style={{ color: '#2563eb', fontWeight: 'bold' }}>{empDetails.underJudicialOfficer || '-'}</span></div>
-              </div>
-            </div>
+        <h4 style={modalSectionTitleStyle}>🏛️ २. ऑफिस, लोकेशन व नियुक्ती माहिती (Office & Location Details)</h4>
+        <div style={modalGridStyle}>
+          <div style={infoBoxStyle}><strong>सेक्शन:</strong> {employeeData.sectionName || '-'}</div>
+          <div style={infoBoxStyle}><strong>रूम नंबर:</strong> {employeeData.roomNumber || '-'}</div>
+          <div style={infoBoxStyle}><strong>फ्लोअर नंबर:</strong> {employeeData.flowerNumber || '-'}</div>
+          <div style={infoBoxStyle}><strong>ऑफिस/कोर्ट:</strong> {employeeData.underOfficeOrCourt || '-'}</div>
+          <div style={infoBoxStyle}><strong>सध्याचे न्यायाधीश:</strong> {employeeData.underJudicialOfficer || '-'}</div>
+        </div>
 
-            <h4 style={{ color: '#0d233a', fontSize: '16px', marginBottom: '10px' }}>⏳ न्यायाधीशांच्या अंतर्गत सेवा कालावधी (Tenure / Span History):</h4>
-            
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ background: '#0d233a', color: '#fff', textAlign: 'left' }}>
-                  <th style={{ padding: '10px', border: '1px solid #cbd5e1' }}>अ.क्र.</th>
-                  <th style={{ padding: '10px', border: '1px solid #cbd5e1' }}>न्यायाधीशांचे नाव (Judge Name)</th>
-                  <th style={{ padding: '10px', border: '1px solid #cbd5e1' }}>पासून दिनांक (From)</th>
-                  <th style={{ padding: '10px', border: '1px solid #cbd5e1' }}>पर्यंत दिनांक (To)</th>
-                  <th style={{ padding: '10px', border: '1px solid #cbd5e1' }}>कोर्ट / स्टेशन</th>
-                  <th style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'center' }}>कृती (Actions)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {empDetails.officersDuration && empDetails.officersDuration.length > 0 ? (
-                  empDetails.officersDuration.map((item, index) => (
-                    <tr key={index} style={{ background: index % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                      <td style={{ padding: '10px', border: '1px solid #cbd5e1' }}>{index + 1}</td>
-                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontWeight: 'bold' }}>{item.judgeName}</td>
-                      <td style={{ padding: '10px', border: '1px solid #cbd5e1' }}>{item.fromDate}</td>
-                      <td style={{ padding: '10px', border: '1px solid #cbd5e1' }}>{item.toDate}</td>
-                      <td style={{ padding: '10px', border: '1px solid #cbd5e1' }}>{item.stationName}</td>
-                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'center' }}>
-                        <button 
-                          onClick={() => handleEditClick(index)}
-                          style={{ background: '#d97706', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', marginRight: '5px', fontSize: '11px' }}
-                        >
-                          ✏️ एडिट
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteDuration(index)}
-                          style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-                        >
-                          🗑️ डिलीट
-                        </button>
+        <h4 style={modalSectionTitleStyle}>३. रजेचा इतिहास (Leave History)</h4>
+        <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9', color: '#0d233a', textAlign: 'left' }}>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>अ.क्र.</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>रजेची तारीख (Date)</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>रजेचा प्रकार (Type)</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>कारण (Reason)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const leaveRecords = employeeData.takenLeaves || employeeData.leaveHistory || employeeData.leaves || [];
+                if (Array.isArray(leaveRecords) && leaveRecords.length > 0) {
+                  return leaveRecords.map((leave, lIndex) => (
+                    <tr key={lIndex}>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{lIndex + 1}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{leave.date || leave.leaveDate || leave.fromDate || '-'}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{leave.type || leave.leaveType || 'CL'}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{leave.reason || leave.leaveReason || '-'}</td>
+                    </tr>
+                  ));
+                } else {
+                  return (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: 'center', padding: '12px', border: '1px solid #cbd5e1', color: '#64748b' }}>
+                        कोणतीही रजा घेतलेली नाही.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '15px', border: '1px solid #cbd5e1', color: '#64748b' }}>
-                      कोणताही न्यायाधीश सेवा कालावधी रेकॉर्ड उपलब्ध नाही. खालील फॉर्म वापरून ॲड करा.
-                    </td>
+                  );
+                }
+              })()}
+            </tbody>
+          </table>
+        </div>
+
+        <h4 style={modalSectionTitleStyle}>🔄 ४. बदलीचा इतिहास (Transfer History)</h4>
+        <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9', color: '#0d233a', textAlign: 'left' }}>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>अ.क्र.</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>पासून दिनांक (From)</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>पर्यंत दिनांक (To)</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>स्टेशनचे नाव (Station Name)</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>कारण (Reason)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {employeeData.transferHistory && employeeData.transferHistory.length > 0 ? (
+                employeeData.transferHistory.map((transfer, tIndex) => (
+                  <tr key={tIndex}>
+                    <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{tIndex + 1}</td>
+                    <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{transfer.fromDate || '-'}</td>
+                    <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{transfer.toDate || '-'}</td>
+                    <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{transfer.stationName || '-'}</td>
+                    <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{transfer.reason || '-'}</td>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '12px', border: '1px solid #cbd5e1', color: '#64748b' }}>
+                    कोणताही बदलीचा इतिहास उपलब्ध नाही.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-            {/* नवीन किंवा अपडेट कालावधी जोडण्यासाठी फॉर्म */}
-            <form onSubmit={handleSaveDuration} style={{ background: '#f8fafc', padding: '15px', borderRadius: '6px', border: '1px solid #cbd5e1', marginBottom: '20px' }}>
-              <h4 style={{ color: '#0d233a', fontSize: '15px', marginBottom: '12px' }}>
-                {editIndex !== null ? '✏️ कालावधी एडिट करा (Edit Tenure)' : '➕ नवीन न्यायाधीश कालावधी जोडा (Add Tenure)'}
-              </h4>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>न्यायाधीशांचे नाव:</label>
-                  <input 
-                    type="text" 
-                    value={judgeName} 
-                    onChange={(e) => setJudgeName(e.target.value)} 
-                    placeholder="उदा. Hon. Justice A. B. Shinde" 
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }} 
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>कोर्ट / स्टेशन:</label>
-                  <input 
-                    type="text" 
-                    value={station} 
-                    onChange={(e) => setStation(e.target.value)} 
-                    placeholder="उदा. District Court Nashik" 
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }} 
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>पासून दिनांक (From Date):</label>
-                  <input 
-                    type="date" 
-                    value={fromDate} 
-                    onChange={(e) => setFromDate(e.target.value)} 
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }} 
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>पर्यंत दिनांक (To Date - मोकळे सोडल्यास 'सध्या कार्यरत'):</label>
-                  <input 
-                    type="date" 
-                    value={toDate} 
-                    onChange={(e) => setToDate(e.target.value)} 
-                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }} 
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button 
-                  type="submit" 
-                  style={{ background: editIndex !== null ? '#d97706' : '#059669', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  {editIndex !== null ? '💾 अपडेट करा (Update Span)' : '💾 कालावधी सेव्ह करा (Save Span)'}
-                </button>
-
-                {editIndex !== null && (
-                  <button 
-                    type="button" 
-                    onClick={clearForm}
-                    style={{ background: '#64748b', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    ❌ कॅन्सल (Cancel)
-                  </button>
-                )}
-              </div>
-            </form>
-
-            {/* प्रिंट बटण */}
-            <div style={{ textAlign: 'right' }}>
-              <button 
-                onClick={() => window.print()} 
-                style={{ background: '#0d233a', color: '#fff', border: 'none', padding: '10px 25px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                🖨️ CR रिपोर्ट प्रिंट करा (Print Report)
-              </button>
-            </div>
-
-          </div>
-        )}
-
+        <h4 style={modalSectionTitleStyle}>⏳ ५. न्यायाधीशांच्या अंतर्गत सेवा कालावधी (Tenure / Span History):</h4>
+        <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: '#0d233a', color: '#fff', textAlign: 'left' }}>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>अ.क्र.</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>न्यायाधीशांचे नाव (Judge Name)</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>पासून दिनांक (From)</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>पर्यंत दिनांक (To)</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1' }}>कोर्ट / स्टेशन</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const tenureList = employeeData.officersDuration || employeeData.tenureHistory || [];
+                if (Array.isArray(tenureList) && tenureList.length > 0) {
+                  return tenureList.map((t, tIdx) => (
+                    <tr key={tIdx}>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{tIdx + 1}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}><strong>{t.judgeName || '-'}</strong></td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{t.fromDate || '-'}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{t.toDate ? t.toDate : <span style={{ color: 'green', fontWeight: 'bold' }}>सध्या कार्यरत</span>}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{t.stationName || '-'}</td>
+                    </tr>
+                  ));
+                } else {
+                  return (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', padding: '12px', border: '1px solid #cbd5e1', color: '#64748b' }}>
+                        कोणताही सेवा कालावधी इतिहास उपलब्ध नाही.
+                      </td>
+                    </tr>
+                  );
+                }
+              })()}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+const modalSectionTitleStyle = {
+  color: '#0d233a', fontSize: '15px', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', marginTop: '20px', marginBottom: '10px', fontWeight: 'bold'
+};
+
+const modalGridStyle = {
+  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '10px', fontSize: '14px', marginBottom: '15px'
+};
+
+const infoBoxStyle = {
+  background: '#f8fafc', padding: '10px 14px', borderRadius: '6px', border: '1px solid #e2e8f0'
+};
+
+export default EmployeeProfile;
