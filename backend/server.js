@@ -590,6 +590,70 @@ app.listen(PORT, async () => {
 });
 
 
+
+// --- LEAVE MANAGEMENT API ROUTE ---
+const handleApplyLeave = async (req, res) => {
+  try {
+    const { employeeId, leaveType, date, reason, clLeaveDates, elLeaveDates, coffLeaveDates } = req.body;
+    
+    const sheet = await getMasterSheet();
+    const rows = await sheet.getRows();
+    
+    // employeeId किंवा employeeName ने कर्मचारी शोधा
+    let row = rows.find(r => String(r.get('employeeId') || '').trim() === String(employeeId).trim());
+    if (!row && req.body.employeeName) {
+      row = rows.find(r => String(r.get('employeeName') || '').trim().toLowerCase() === String(req.body.employeeName).trim().toLowerCase());
+    }
+
+    if (!row) {
+      return res.status(404).json({ success: false, error: "कर्मचारी रेकॉर्ड सापडला नाही." });
+    }
+
+    const existingRowData = row.toObject();
+    
+    // जर फ्रंटएंडवरून थेट ॲरे येत असेल तर तो वापर, अन्यथा जुन्या डेटाबेस डेटासह नवीन तारीख मर्ज करा
+    let updatePayload = {
+      ...existingRowData,
+      reason: reason || 'N/A'
+    };
+
+    if (leaveType === 'CL' && date) {
+      let currentCL = parseLeaves(existingRowData.clLeaveDates);
+      currentCL.push({ date, reason: reason || 'CL' });
+      updatePayload.clLeaveDates = currentCL;
+    } else if (leaveType === 'EL' && date) {
+      let currentEL = parseLeaves(existingRowData.elLeaveDates);
+      currentEL.push({ date, reason: reason || 'EL' });
+      updatePayload.elLeaveDates = currentEL;
+    } else if (leaveType === 'COff' && date) {
+      let currentCOff = parseLeaves(existingRowData.coffLeaveDates);
+      currentCOff.push({ date, reason: reason || 'COff' });
+      updatePayload.coffLeaveDates = currentCOff;
+    }
+
+    // जर पूर्ण ॲरे पाठवला असेल तर तो हँडल करा
+    if (clLeaveDates) updatePayload.clLeaveDates = clLeaveDates;
+    if (elLeaveDates) updatePayload.elLeaveDates = elLeaveDates;
+    if (coffLeaveDates) updatePayload.coffLeaveDates = coffLeaveDates;
+
+    const cleanData = sanitizeStaffData(updatePayload, row.get('id'), existingRowData);
+
+    Object.keys(cleanData).forEach(header => {
+      if (header !== 'id') {
+        row.set(header, String(cleanData[header] ?? ''));
+      }
+    });
+
+    await row.save();
+    res.json({ success: true, message: "✅ रजा अर्ज यशस्वीरित्या सबमिट आणि सेव्ह झाला!" });
+  } catch (err) {
+    console.error("❌ Leave Application Error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+app.post('/api/leaves', handleApplyLeave);
+app.post('/api/court-staff/leaves', handleApplyLeave);
 // require('dotenv').config();
 // const express = require('express');
 // const { GoogleSpreadsheet } = require('google-spreadsheet');
