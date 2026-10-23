@@ -9,15 +9,15 @@ import { AddEmployeeForm } from './Pages/AddEmployeeForm';
 import { LeaveManagement } from './Pages/LeaveManagement';
 import { TransferManagement } from './Pages/TransferManagement';
 import CRReportModule from './Pages/CRReportModule'; 
-import EmployeeProfile from './Pages/EmployeeProfile'; // 🌟 कर्मचाऱ्याचे स्वतःचे प्रोफाइल पेज इम्पोर्ट केले
+import EmployeeProfile from './Pages/EmployeeProfile'; 
+import { DailyManage } from './Pages/DailyManage'; // 🌟 नवीन DailyManage पेज इम्पोर्ट केले
 
 function App() {
-  const [user, setUser] = useState(null); // लॉगिन युजरची माहिती साठवण्यासाठी
+  const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [employees, setEmployees] = useState([]);
   const [editingEmployee, setEditingEmployee] = useState(null);
 
-  // Dashboard Search & Filters State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRoom, setSelectedRoom] = useState('All');
   const [selectedSaheb, setSelectedSaheb] = useState('All');
@@ -25,7 +25,6 @@ function App() {
   const [selectedDesignation, setSelectedDesignation] = useState('All');
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://172.16.171.96:5000/api';
 
-  // 1. पेज लोड झाल्यावर localStorage मधून युजर चेक करणे
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -37,7 +36,6 @@ function App() {
     }
   }, []);
 
-  // Backend कडून कर्मचाऱ्यांची लिस्ट Fetch करणे (फक्त ॲडमिनसाठी)
   const fetchEmployees = async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/employees`);
@@ -74,7 +72,6 @@ function App() {
     setActiveTab('directory');
   };
 
-  // --- डॅशबोर्डसाठी लागणारे मोजमाप व फिल्टर्स ---
   const todayStr = new Date().toISOString().split('T')[0];
 
   const getTodayLeaves = () => {
@@ -122,12 +119,10 @@ function App() {
     return matchSearch && matchRoom && matchSaheb && matchSection && matchDesig;
   });
 
-  // जर युजर लॉगिन नसेल, तर पहिले लॉगिन पेज दाखवा
   if (!user) {
     return <Login onLoginSuccess={(loggedInUser) => setUser(loggedInUser)} />;
   }
 
-  // 🌟 जर लॉगिन झालेला युजर 'employee' असेल, तर त्याला डॅशबोर्ड किंवा इतर ॲडमिन मेनूऐवजी थेट त्याचे स्वतःचे प्रोफाइल पेज दिसेल
   if (user.role === 'employee') {
     return <EmployeeProfile />;
   }
@@ -145,6 +140,9 @@ function App() {
         <ul className="sidebar-menu">
           <li className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
             🏠 Dashboard
+          </li>
+          <li className={activeTab === 'daily-manage' ? 'active' : ''} onClick={() => setActiveTab('daily-manage')}>
+            📅 Daily Duty Manage {/* 🌟 नवीन पर्याय */}
           </li>
           <li className={activeTab === 'directory' ? 'active' : ''} onClick={() => setActiveTab('directory')}>
             👥 Employee Directory
@@ -172,7 +170,6 @@ function App() {
             ⚙️ Settings
           </li>
 
-          {/* 🚪 LOGOUT BUTTON */}
           <li 
             style={{ marginTop: 'auto', background: '#dc2626', color: '#fff', textAlign: 'center', cursor: 'pointer', borderRadius: '6px', padding: '10px' }} 
             onClick={handleLogout}
@@ -208,6 +205,16 @@ function App() {
             uniqueDesignations={uniqueDesignations}
             setActiveTab={setActiveTab}
           />
+        )}
+
+        {/* 🌟 3. नवीन Daily Duty Manage व्ह्यू */}
+        {activeTab === 'daily-manage' && (
+          <div className="dashboard-view">
+            <DailyManage 
+              employees={employees} 
+              onRefresh={fetchEmployees} 
+            />
+          </div>
         )}
 
         {activeTab === 'cr-report' && (
@@ -289,11 +296,12 @@ export default App;
 // import Login from './Pages/Login';
 // import { CreateUser } from './Pages/CreateUser';
 // import { Dashboard } from './Pages/Dashboard';
-// import { EmployeeDirectory,  } from './Pages/EmployeeManagement';
+// import { EmployeeDirectory } from './Pages/EmployeeManagement';
 // import { AddEmployeeForm } from './Pages/AddEmployeeForm';
 // import { LeaveManagement } from './Pages/LeaveManagement';
 // import { TransferManagement } from './Pages/TransferManagement';
-// import CRReportModule from './Pages/CRReportModule'; // <--- नवीन CR रिपोर्ट मॉड्यूल इम्पोर्ट केले
+// import CRReportModule from './Pages/CRReportModule'; 
+// import EmployeeProfile from './Pages/EmployeeProfile'; // 🌟 कर्मचाऱ्याचे स्वतःचे प्रोफाइल पेज इम्पोर्ट केले
 
 // function App() {
 //   const [user, setUser] = useState(null); // लॉगिन युजरची माहिती साठवण्यासाठी
@@ -307,17 +315,21 @@ export default App;
 //   const [selectedSaheb, setSelectedSaheb] = useState('All');
 //   const [selectedSection, setSelectedSection] = useState('All');
 //   const [selectedDesignation, setSelectedDesignation] = useState('All');
-//   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+//   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://172.16.171.96:5000/api';
 
 //   // 1. पेज लोड झाल्यावर localStorage मधून युजर चेक करणे
 //   useEffect(() => {
 //     const savedUser = localStorage.getItem('user');
 //     if (savedUser) {
-//       setUser(JSON.parse(savedUser));
+//       try {
+//         setUser(JSON.parse(savedUser));
+//       } catch (e) {
+//         console.error("Error parsing user from localStorage:", e);
+//       }
 //     }
 //   }, []);
 
-//   // Backend कडून कर्मचाऱ्यांची लिस्ट Fetch करणे
+//   // Backend कडून कर्मचाऱ्यांची लिस्ट Fetch करणे (फक्त ॲडमिनसाठी)
 //   const fetchEmployees = async () => {
 //     try {
 //       const res = await axios.get(`${API_BASE_URL}/employees`);
@@ -328,14 +340,13 @@ export default App;
 //   };
 
 //   useEffect(() => {
-//     if (user) {
+//     if (user && user.role !== 'employee') {
 //       fetchEmployees();
 //     }
 //   }, [user]);
 
 //   const handleLogout = () => {
-//     localStorage.removeItem('token');
-//     localStorage.removeItem('user');
+//     localStorage.clear();
 //     setUser(null);
 //   };
 
@@ -408,6 +419,11 @@ export default App;
 //     return <Login onLoginSuccess={(loggedInUser) => setUser(loggedInUser)} />;
 //   }
 
+//   // 🌟 जर लॉगिन झालेला युजर 'employee' असेल, तर त्याला डॅशबोर्ड किंवा इतर ॲडमिन मेनूऐवजी थेट त्याचे स्वतःचे प्रोफाइल पेज दिसेल
+//   if (user.role === 'employee') {
+//     return <EmployeeProfile />;
+//   }
+
 //   return (
 //     <div className="app-container">
       
@@ -425,22 +441,19 @@ export default App;
 //           <li className={activeTab === 'directory' ? 'active' : ''} onClick={() => setActiveTab('directory')}>
 //             👥 Employee Directory
 //           </li>
-//    <li className={activeTab === 'add' ? 'active' : ''} onClick={() => { setEditingEmployee(null); setActiveTab('add'); }}>
+//           <li className={activeTab === 'add' ? 'active' : ''} onClick={() => { setEditingEmployee(null); setActiveTab('add'); }}>
 //             ➕ Add New Employee
 //           </li>
-//           {/* 📑 CR रिपोर्ट नवीन मेनू ऑप्शन */}
 //           <li className={activeTab === 'cr-report' ? 'active' : ''} onClick={() => setActiveTab('cr-report')}>
 //             📑 CR Report (Tenure)
 //           </li>
           
-//           {/* फक्त Establishment Admin असेल तरच हा ऑप्शन दिसेल */}
 //           {user.employeeRole === 'Establishment Admin' && (
 //             <li className={activeTab === 'createUser' ? 'active' : ''} onClick={() => setActiveTab('createUser')}>
 //               ➕ Create New User
 //             </li>
 //           )}
 
-       
 //           <li className={activeTab === 'leave' ? 'active' : ''} onClick={() => setActiveTab('leave')}>
 //             📋 Leave Management
 //           </li>
@@ -453,7 +466,7 @@ export default App;
 
 //           {/* 🚪 LOGOUT BUTTON */}
 //           <li 
-//             style={{ marginTop: 'auto', background: '#dc2626', color: '#fff', textAlign: 'center', cursor: 'pointer', borderRadius: '6px' }} 
+//             style={{ marginTop: 'auto', background: '#dc2626', color: '#fff', textAlign: 'center', cursor: 'pointer', borderRadius: '6px', padding: '10px' }} 
 //             onClick={handleLogout}
 //           >
 //             🚪 Logout ({user.employeeName})
@@ -485,18 +498,16 @@ export default App;
 //             uniqueSahebs={uniqueSahebs}
 //             uniqueSections={uniqueSections}
 //             uniqueDesignations={uniqueDesignations}
-//             setActiveTab={setActiveTab} // <--- डॅशबोर्ड कार्डवरून नेव्हिगेट करण्यासाठी पास केले
+//             setActiveTab={setActiveTab}
 //           />
 //         )}
 
-//         {/* 📑 CR रिपोर्ट पेज कंपोनंट */}
 //         {activeTab === 'cr-report' && (
 //           <div className="dashboard-view">
 //             <CRReportModule />
 //           </div>
 //         )}
 
-//         {/* Create New User View (फक्त Admin साठी) */}
 //         {activeTab === 'createUser' && user.employeeRole === 'Establishment Admin' && (
 //           <div className="dashboard-view">
 //             <CreateUser />
@@ -563,62 +574,3 @@ export default App;
 // }
 
 // export default App;
-
-
-// // import React, { useState, useEffect } from 'react';
-// // import axios from 'axios';
-
-// // const CourtDocumentViewer = () => {
-// //   const [blobUrl, setBlobUrl] = useState('');
-// //   const [loading, setLoading] = useState(true);
-
-// //   useEffect(() => {
-// //     const fetchCourtDocument = async () => {
-// //       try {
-// //         setLoading(true);
-
-// //         const response = await axios.post('http://localhost:5000/api/get-cases', {
-// //           court_no: 'MHNS01*1',
-// //           tod: '1',
-// //           state_code: '1',
-// //           dist_code: '15'
-// //         });
-
-// //         // HTML चा Blob तयार करून URL जनरेट करा
-// //         const blob = new Blob([response.data], { type: 'text/html' });
-// //         const url = URL.createObjectURL(blob);
-// //         setBlobUrl(url);
-
-// //       } catch (err) {
-// //         console.error('Fetch Error:', err);
-// //       } finally {
-// //         setLoading(false);
-// //       }
-// //     };
-
-// //     fetchCourtDocument();
-// //   }, []);
-
-// //   return (
-// //     <div style={{ padding: '15px', fontFamily: 'Arial, sans-serif' }}>
-// //       <h2>Court Document Response:</h2>
-
-// //       {loading ? (
-// //         <p>डेटा लोड होत आहे...</p>
-// //       ) : (
-// //         <iframe
-// //           src={blobUrl}
-// //           title="Court Document"
-// //           style={{
-// //             width: '100%',
-// //             height: '800px',
-// //             border: '1px solid #ccc',
-// //             borderRadius: '6px'
-// //           }}
-// //         />
-// //       )}
-// //     </div>
-// //   );
-// // };
-
-// // export default CourtDocumentViewer;
