@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-export function DailyManage({ employees, onRefresh }) {
+export function DailyManage({ employees = [], onRefresh }) {
   const todayStr = new Date().toISOString().split('T')[0];
 
   const [allocationDate, setAllocationDate] = useState(todayStr);
@@ -32,7 +32,7 @@ export function DailyManage({ employees, onRefresh }) {
     e.employeeName !== selectedAbsentEmp
   );
 
-  // सर्व कर्मचाऱ्यांमधून dailyManage रेकॉर्ड्स गोळा करणे
+  // सर्व कर्मचाऱ्यांमधून dailyManage रेकॉर्ड्स आणि कोर्ट/न्यायाधीश माहिती गोळा करणे
   const getAllocationsHistory = () => {
     let history = [];
     employees.forEach(emp => {
@@ -49,7 +49,10 @@ export function DailyManage({ employees, onRefresh }) {
           recordIndex: idx,
           empId: emp.id || emp._id || emp.rowNumber,
           absentEmpName: emp.employeeName,
-          absentEmpRole: emp.employeeRole || emp.designation || 'पद नाही'
+          absentEmpRole: emp.employeeRole || emp.designation || 'पद नाही',
+          // 🌟 कोर्ट व न्यायाधीशांची (साहेबांची) माहिती जोडली
+          courtName: emp.underOfficeOrCourt || 'कोर्ट/ऑफिस नाही',
+          judgeName: emp.underJudicialOfficer || 'न्यायाधीश निवडलेले नाहीत'
         });
       });
     });
@@ -211,7 +214,7 @@ export function DailyManage({ employees, onRefresh }) {
         </form>
       </div>
 
-      {/* २. इतिहास टेबल (Edit & Delete बटणांसह) */}
+      {/* २. इतिहास टेबल (कोर्ट व न्यायाधीश माहितीसह) */}
       <div style={cardStyle}>
         <h2>📊 दैनिक काम व बदली वाटप इतिहास (Daily Duty Allocation History)</h2>
 
@@ -222,6 +225,8 @@ export function DailyManage({ employees, onRefresh }) {
                 <th style={thStyle}>अ.क्र.</th>
                 <th style={thStyle}>दिनांक</th>
                 <th style={thStyle}>रजेवर/कामावर असणारा कर्मचारी & पद</th>
+                {/* 🌟 नवीन कॉलम: कोर्ट व साहेबांचे नाव */}
+                <th style={thStyle}>कोर्ट / ऑफिस व न्यायाधीश (साहेब)</th>
                 <th style={thStyle}>स्थिती</th>
                 <th style={thStyle}>कामावर हजर राहणारा (Reliever) & पद</th>
                 <th style={thStyle}>शेरा</th>
@@ -238,6 +243,18 @@ export function DailyManage({ employees, onRefresh }) {
                       <span style={{ color: '#dc2626', fontWeight: 'bold' }}>{item.absentEmpName}</span>
                       <br /><span style={{ fontSize: '11px', color: '#64748b' }}>({item.absentEmpRole})</span>
                     </td>
+
+                    {/* 🌟 कोर्ट / ऑफिस व न्यायाधीशांचे (साहेबांचे) नाव */}
+                    <td style={tdStyle}>
+                      <span style={{ background: '#e2e8f0', color: '#0f172a', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                        🏛️ {item.courtName}
+                      </span>
+                      <br />
+                      <span style={{ color: '#2563eb', fontWeight: '600', fontSize: '12px' }}>
+                        ⚖️ {item.judgeName}
+                      </span>
+                    </td>
+
                     <td style={tdStyle}>
                       <span style={{ background: '#fef3c7', color: '#92400e', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
                         {item.status}
@@ -258,7 +275,7 @@ export function DailyManage({ employees, onRefresh }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
                     कोणतीही दैनिक कामाची नोंद उपलब्ध नाही.
                   </td>
                 </tr>
