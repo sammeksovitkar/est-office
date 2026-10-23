@@ -24,8 +24,8 @@ export function AddEmployeeForm({ editingData, allEmployees = [], onSaveComplete
     underTaluka: 'Nashik (HQ)',
     underOfficeOrCourt: '',
     underJudicialOfficer: '',
-    isDeputation: false,        // 🌟 प्रतिनियुक्ती आहे का? (Yes/No)
-    deputationCourt: '',        // 🌟 प्रतिनियुक्ती असलेल्या मूळ कोर्टाचे नाव
+    isDeputation: false,        // 🌟 प्रतिनियुक्ती (Deputation) Status
+    deputationCourt: '',        // 🌟 मूळ कोर्टाचे नाव
     joiningDate: '',
     officeJoiningDate: '',
     transferHistory: [],
@@ -54,11 +54,13 @@ export function AddEmployeeForm({ editingData, allEmployees = [], onSaveComplete
   const [isCustomRole, setIsCustomRole] = useState(false);
   const [customRoleInput, setCustomRoleInput] = useState('');
 
+  // 🌟 १. CONTINUOUS API CALL ॲव्हॉईड करण्यासाठी एकदाच चालणारा useEffect
   useEffect(() => {
+    let isMounted = true;
     const fetchAllEmps = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/employees`);
-        if (res.data && Array.isArray(res.data)) {
+        if (isMounted && res.data && Array.isArray(res.data)) {
           setEmployeesList(res.data);
         }
       } catch (err) {
@@ -71,7 +73,9 @@ export function AddEmployeeForm({ editingData, allEmployees = [], onSaveComplete
     } else {
       fetchAllEmps();
     }
-  }, [allEmployees, API_BASE_URL]);
+
+    return () => { isMounted = false; };
+  }, []); // 👈 🌟 डिपेन्डन्सी रिकामी ठेवली आहे जेणेकरून सतत API कॉल होणार नाही
 
   const defaultRoles = [
     "Clerk", "Peon", "Bailiff", "Driver", "Judge", 
@@ -142,7 +146,7 @@ export function AddEmployeeForm({ editingData, allEmployees = [], onSaveComplete
     ...employeesList.map(emp => emp.underJudicialOfficer)
   ].filter(Boolean))];
 
-  // 🌟 एडिट मोड किंवा फॉर्म डेटा बदलल्यावर प्रतिनियुक्तीसह सर्व डेटा अचूक सिंक करणे
+  // 🌟 २. INFINITE LOOP टाळण्यासाठी डिपेन्डन्सी मध्ये फक्त ID वापरला आहे
   useEffect(() => {
     if (editingData) {
       setFormData({
@@ -183,7 +187,7 @@ export function AddEmployeeForm({ editingData, allEmployees = [], onSaveComplete
         setCustomFloorInput('');
       }
     }
-  }, [editingData]);
+  }, [editingData?.id || editingData?._id]); // 👈 🌟 ID डिपेन्डन्सी दिल्याने लूप बंद होईल
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
